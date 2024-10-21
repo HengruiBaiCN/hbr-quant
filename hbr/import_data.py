@@ -129,4 +129,4 @@ g_last_get_fund_code_name_list_date = datetime.date(1990, 12, 0)
 # @hku_catch(ret=[], trace=True)
 # @timeout(60)
 def get_fund_code_name_list(market:str) -> list:
-    
+    pass
