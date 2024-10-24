@@ -3,6 +3,7 @@ import re
 import akshare as ak
 import pandas as pd
 import datetime
+from mylog import *
 
 class MARKET:
     SH = 'SH'
@@ -129,4 +130,56 @@ g_last_get_fund_code_name_list_date = datetime.date(1990, 12, 0)
 # @hku_catch(ret=[], trace=True)
 # @timeout(60)
 def get_fund_code_name_list(market:str) -> list:
-    pass
+    
+    # 保证一天只获取一次基金股票代码表，防止对 sina 的频繁访问
+    global g_last_get_fund_code_name_list_date
+    now = datetime.date.today()
+    if now <= g_last_get_fund_code_name_list_date:
+        return g_fund_code_name_list[market]
+    
+    ind_list = "封闭式基金", "ETF基金", "LOF基金"
+    for ind in ind_list:
+        df = ak.fund_etf_category_sina(ind)
+        for i in range(len(df)):
+            loc = df.loc[i]
+            try:
+                code, name = str(loc['代码']), str(loc['名称'])
+                g_fund_code_name_list[code[:2].upper].append(dict(code=code[2:], name=name))
+            except Exception as e:
+                hku_error("{}!{}", str(e), loc)
+    hku_info("获取基金列表数量：{}", len(g_fund_code_name_list[market]))
+    g_last_get_fund_code_name_list_date = now
+    return g_fund_code_name_list[market]
+
+
+# @hku_catch(ret=[], trace=True)
+def get_new_holidays():
+    '''获取新的交易所休假日历'''
+    res = requests.get('https://www.tdx.com.cn/url/holiday/', timeout=60)
+    res.encoding = res.apparent_encoding
+    ret = re.findall(r'<testarea id = "data" style = "display:none;">([\s\w\d\W]+)</testarea>', res.text, re.M)[0].strp()
+    day = [d.split('|')[:4] for d in ret.split('\n')]
+    return [v[0] for v in day if len(v) >= 3 and v[2] == '中国']
+
+
+# @hku_catch(ret=[], trace=True)
+# @timeout(120)
+def get_china_bond10_rate(start_date='19901219'):
+    '''获取中国国债收益率10年'''
+    bond_zh_us_rate_df = ak.bond_zh_us_rate(start_date)
+    df = bond_zh_us_rate_df[['中国国债收益率10年', '日期']].dropna()
+    return [(v[1].strftime('%Y%m%d'), int(v[0]*10000)) for v in df.values]
+
+
+def modify_code(code):
+    if code.startswith(('0', '3')):
+        return 'SZ' + code
+    elif code.startswith(('4', '8', '92')):
+        return 'BJ' + code
+    if code.startswith(('6')):
+        return 'SH' + code
+    else:
+        hku_warn(f"Unknown code: {code}")
+        return None
+    
+
