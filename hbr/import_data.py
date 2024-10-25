@@ -113,9 +113,9 @@ def get_index_code_name_list() -> list:
     elif hasattr(ak, 'stock_zh_index_spot_em'):
         df = ak.stock_zh_index_spot_em
     else:
-        df = ak.stock_zh_index_spot()
+        df = ak.stock_zh_index_spot() # type: ignore
         pass
-    res = [{'market_codce': df.loc[i]['代码'].upper(), 'name': df.loc[i]['名称']} for i in range(len(df))]
+    res = [{'market_codce': df.loc[i]['代码'].upper(), 'name': df.loc[i]['名称']} for i in range(len(df))] # type: ignore
     ret = [v for v in res if len(v['market_code']) == 8]
     return ret
     
